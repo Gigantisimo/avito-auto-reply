@@ -1,0 +1,4 @@
+firebase-credentials.json
+
+# Игнорируем файл с переменными окружения
+.env

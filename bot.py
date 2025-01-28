@@ -23,7 +23,6 @@ import json
 import sys
 import firebase_admin
 from firebase_admin import credentials, firestore
-from flask import Flask, request
 
 # В начале файла
 load_dotenv()  # Загружаем переменные окружения
@@ -879,31 +878,7 @@ class PaymentService:
             logging.error(f"Error checking payment status: {e}")
             return 'ERROR'
 
-app = Flask(__name__)
 bot = AvitoBot()  # Создаем глобальный экземпляр бота
-
-@app.route('/api', methods=['POST'])
-async def handler():  # Переименовываем webhook в handler
-    try:
-        update = request.get_json()
-        
-        # Создаем объект Update из данных
-        telegram_update = Update.de_json(update, None)
-        
-        # Обрабатываем update через бота
-        application = Application.builder().token(os.getenv('TELEGRAM_BOT_TOKEN')).build()
-        
-        # Регистрируем обработчики
-        application.add_handler(CommandHandler('start', bot.start))
-        application.add_handler(CallbackQueryHandler(bot.button_handler))
-        
-        # Обрабатываем update
-        await application.process_update(telegram_update)
-        
-        return "OK", 200
-    except Exception as e:
-        print(f"Error processing update: {e}")
-        return str(e), 500
 
 def main():
     if __name__ == '__main__':

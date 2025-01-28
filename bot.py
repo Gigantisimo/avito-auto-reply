@@ -40,7 +40,7 @@ load_dotenv()  # Загружаем переменные окружения
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename=f'bot_{datetime.now().strftime("%Y%m%d")}.log'
+    handlers=[logging.StreamHandler()]  # Логируем в stdout вместо файла
 )
 
 class AvitoBot:

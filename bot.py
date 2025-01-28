@@ -23,6 +23,7 @@ import json
 import sys
 import firebase_admin
 from firebase_admin import credentials, firestore
+from flask import Flask, request
 
 # В начале файла
 load_dotenv()  # Загружаем переменные окружения
@@ -878,6 +879,14 @@ class PaymentService:
             logging.error(f"Error checking payment status: {e}")
             return 'ERROR'
 
+app = Flask(__name__)
+
+@app.route('/api', methods=['POST'])
+def webhook():
+    update = request.get_json()
+    # Здесь вы можете обработать обновление, например, передать его в ваш бот
+    return "OK", 200
+
 def main():
     # Проверка переменных окружения
     required_vars = {
@@ -970,7 +979,7 @@ def main():
         print("✅ Задачи планировщика добавлены")
         
         print("\n🚀 Бот запущен и готов к работе!")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        app.run()
         
     except Exception as e:
         logging.error(f"Startup error: {e}")

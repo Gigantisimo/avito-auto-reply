@@ -1,4 +1,4 @@
 firebase-credentials.json
-
-# Игнорируем файл с переменными окружения
 .env
+__pycache__/
+*.pyc

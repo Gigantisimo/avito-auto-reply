@@ -16,7 +16,7 @@ import base64
 import os
 import re
 import io
-from PIL import Image
+# from PIL import Image
 from dotenv import load_dotenv
 import logging
 import json
@@ -519,47 +519,8 @@ class AvitoBot:
                     continue
 
     async def handle_image(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = str(update.message.from_user.id)
-        photo = update.message.photo[-1]  # Берем самое большое разрешение
-        
-        try:
-            # Получаем файл
-            file = await context.bot.get_file(photo.file_id)
-            # Скачиваем как байты
-            image_bytes = await file.download_as_bytearray()
-            # Конвертируем в base64
-            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-            
-            # Сохраняем в базу
-            user_data = self.get_user(user_id)
-            if user_data:
-                user_data['image_file_id'] = image_base64
-                self.save_user(user_id, user_data)
-                
-                # Отправляем сообщение об успехе с главным меню
-                keyboard = [
-                    [InlineKeyboardButton("➕ Добавить Client ID", callback_data='add_client_id')],
-                    [InlineKeyboardButton("🔑 Добавить Client Secret", callback_data='add_client_secret')],
-                    [InlineKeyboardButton("👤 Добавить User ID", callback_data='add_user_id')],
-                    [InlineKeyboardButton("📝 Установить шаблон ответа", callback_data='set_template')],
-                    [InlineKeyboardButton("🖼 Загрузить изображение", callback_data='upload_image')],
-                    [InlineKeyboardButton("🔄 Включить/выключить автоответ", callback_data='toggle_auto_reply')],
-                    [InlineKeyboardButton("⚙️ Настройки", callback_data='view_settings')],
-                    [InlineKeyboardButton("📨 Бот для рассылки", url="t.me/avsender_bot")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await update.message.reply_text(
-                    "✅ Изображение успешно сохранено!\n"
-                    "Оно будет отправляться перед текстом автоответа.",
-                    reply_markup=reply_markup
-                )
-            else:
-                await update.message.reply_text("❌ Сначала настройте учетные данные!")
-        except Exception as e:
-            print(f"Error handling image: {e}")
-            await update.message.reply_text("❌ Ошибка при сохранении изображения. Попробуйте еще раз.")
-        
+        # Временно отключаем обработку изображений
+        await update.message.reply_text("Функция загрузки изображений временно недоступна")
         return ConversationHandler.END
 
     async def check_balance_and_advance(self, user_data):

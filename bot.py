@@ -880,111 +880,130 @@ class PaymentService:
             return 'ERROR'
 
 app = Flask(__name__)
+bot = AvitoBot()  # Создаем глобальный экземпляр бота
 
 @app.route('/api', methods=['POST'])
-def webhook():
-    update = request.get_json()
-    # Здесь вы можете обработать обновление, например, передать его в ваш бот
-    return "OK", 200
-
-def main():
-    # Проверка переменных окружения
-    required_vars = {
-        "TOCHKA_JWT_TOKEN": os.getenv("TOCHKA_JWT_TOKEN"),
-        "TOCHKA_CLIENT_ID": os.getenv("TOCHKA_CLIENT_ID"),
-        "PAYMENT_SUCCESS_URL": os.getenv("PAYMENT_SUCCESS_URL"),
-        "ADMIN_TELEGRAM_ID": os.getenv("ADMIN_TELEGRAM_ID")
-    }
-    
-    missing_vars = [var for var, value in required_vars.items() if not value]
-    
-    if missing_vars:
-        print("❌ Ошибка: Отсутствуют обязательные переменные окружения:")
-        for var in missing_vars:
-            print(f"  - {var}")
-        return
-        
+async def handler():  # Переименовываем webhook в handler
     try:
-        # Проверяем токен при запуске
-        payment_service = PaymentService(os.getenv('TOCHKA_JWT_TOKEN'))
+        update = request.get_json()
         
-        bot = AvitoBot()
-        print("✅ Бот инициализирован")
+        # Создаем объект Update из данных
+        telegram_update = Update.de_json(update, None)
         
+        # Обрабатываем update через бота
         application = Application.builder().token(os.getenv('TELEGRAM_BOT_TOKEN')).build()
         
-        # Добавляем обработчик команды проверки токена
-        application.add_handler(CommandHandler('test_token', bot.test_token_handler))
+        # Регистрируем обработчики
+        application.add_handler(CommandHandler('start', bot.start))
+        application.add_handler(CallbackQueryHandler(bot.button_handler))
         
-        # Добавляем логи в check_messages
-        async def check_messages_with_logs(context):
-            print("\n🔄 Запущена проверка сообщений")
-            users = bot.get_active_users()
-            print(f"📊 Найдено активных пользователей: {len(users)}")
-            await bot.check_messages(context)
-            print("✅ Проверка сообщений завершена\n")
-
-        # Добавляем логи в send_reminder
-        async def send_reminder(context):
-            print("\n📢 Запущена отправка напоминаний")
-            conn = sqlite3.connect(bot.db_path)
-            c = conn.cursor()
-            c.execute('SELECT user_id FROM users')
-            users = c.fetchall()
-            print(f"👥 Всего пользователей для напоминания: {len(users)}")
-            conn.close()
-
-            for user in users:
-                try:
-                    await context.bot.send_message(
-                        user[0],
-                        "Напоминаю! У нас есть бот для рассылки по чатам Avito!\n\n"
-                        "🚀 С помощью @avsender_bot вы можете:\n"
-                        "• Отправлять сообщения по своим чатам\n"
-                        "• Настраивать фильтры по датам\n"
-                        "• Добавлять изображения\n\n"
-                        "👉 Переходите прямо сейчас!",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("Перейти к боту рассылки", url="t.me/avsender_bot")]
-                        ])
-                    )
-                    print(f"✅ Напоминание отправлено пользователю {user[0]}")
-                except Exception as e:
-                    print(f"❌ Ошибка отправки напоминания пользователю {user[0]}: {e}")
-                    continue
-            print("✅ Отправка напоминаний завершена\n")
-
-        conv_handler = ConversationHandler(
-            entry_points=[
-                CommandHandler('start', bot.start),
-                CallbackQueryHandler(bot.button_handler)
-            ],
-            states={
-                WAITING_CLIENT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_client_id)],
-                WAITING_CLIENT_SECRET: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_client_secret)],
-                WAITING_USER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_user_id)],
-                WAITING_TEMPLATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_template)],
-                WAITING_IMAGE: [MessageHandler(filters.PHOTO, bot.handle_image)],  # Новый обработчик
-            },
-            fallbacks=[CommandHandler('start', bot.start)],
-        )
+        # Обрабатываем update
+        await application.process_update(telegram_update)
         
-        application.add_handler(conv_handler)
-        print("✅ Обработчики добавлены")
-        
-        job_queue = application.job_queue
-        job_queue.run_repeating(check_messages_with_logs, interval=60, first=10)
-        job_queue.run_repeating(send_reminder, interval=3*24*60*60, first=24*60*60)
-        job_queue.run_repeating(bot.check_balance_periodically, interval=60*60, first=10)  # Проверка каждый час
-        print("✅ Задачи планировщика добавлены")
-        
-        print("\n🚀 Бот запущен и готов к работе!")
-        app.run()
-        
+        return "OK", 200
     except Exception as e:
-        logging.error(f"Startup error: {e}")
-        print(f"❌ Ошибка запуска: {e}")
-        sys.exit(1)
+        print(f"Error processing update: {e}")
+        return str(e), 500
+
+def main():
+    if __name__ == '__main__':
+        # Проверка переменных окружения
+        required_vars = {
+            "TOCHKA_JWT_TOKEN": os.getenv("TOCHKA_JWT_TOKEN"),
+            "TOCHKA_CLIENT_ID": os.getenv("TOCHKA_CLIENT_ID"),
+            "PAYMENT_SUCCESS_URL": os.getenv("PAYMENT_SUCCESS_URL"),
+            "ADMIN_TELEGRAM_ID": os.getenv("ADMIN_TELEGRAM_ID")
+        }
+        
+        missing_vars = [var for var, value in required_vars.items() if not value]
+        
+        if missing_vars:
+            print("❌ Ошибка: Отсутствуют обязательные переменные окружения:")
+            for var in missing_vars:
+                print(f"  - {var}")
+            return
+        
+        try:
+            # Проверяем токен при запуске
+            payment_service = PaymentService(os.getenv('TOCHKA_JWT_TOKEN'))
+            
+            bot = AvitoBot()
+            print("✅ Бот инициализирован")
+            
+            application = Application.builder().token(os.getenv('TELEGRAM_BOT_TOKEN')).build()
+            
+            # Добавляем обработчик команды проверки токена
+            application.add_handler(CommandHandler('test_token', bot.test_token_handler))
+            
+            # Добавляем логи в check_messages
+            async def check_messages_with_logs(context):
+                print("\n🔄 Запущена проверка сообщений")
+                users = bot.get_active_users()
+                print(f"📊 Найдено активных пользователей: {len(users)}")
+                await bot.check_messages(context)
+                print("✅ Проверка сообщений завершена\n")
+
+            # Добавляем логи в send_reminder
+            async def send_reminder(context):
+                print("\n📢 Запущена отправка напоминаний")
+                conn = sqlite3.connect(bot.db_path)
+                c = conn.cursor()
+                c.execute('SELECT user_id FROM users')
+                users = c.fetchall()
+                print(f"👥 Всего пользователей для напоминания: {len(users)}")
+                conn.close()
+
+                for user in users:
+                    try:
+                        await context.bot.send_message(
+                            user[0],
+                            "Напоминаю! У нас есть бот для рассылки по чатам Avito!\n\n"
+                            "🚀 С помощью @avsender_bot вы можете:\n"
+                            "• Отправлять сообщения по своим чатам\n"
+                            "• Настраивать фильтры по датам\n"
+                            "• Добавлять изображения\n\n"
+                            "👉 Переходите прямо сейчас!",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("Перейти к боту рассылки", url="t.me/avsender_bot")]
+                            ])
+                        )
+                        print(f"✅ Напоминание отправлено пользователю {user[0]}")
+                    except Exception as e:
+                        print(f"❌ Ошибка отправки напоминания пользователю {user[0]}: {e}")
+                        continue
+                print("✅ Отправка напоминаний завершена\n")
+
+            conv_handler = ConversationHandler(
+                entry_points=[
+                    CommandHandler('start', bot.start),
+                    CallbackQueryHandler(bot.button_handler)
+                ],
+                states={
+                    WAITING_CLIENT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_client_id)],
+                    WAITING_CLIENT_SECRET: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_client_secret)],
+                    WAITING_USER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_user_id)],
+                    WAITING_TEMPLATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_template)],
+                    WAITING_IMAGE: [MessageHandler(filters.PHOTO, bot.handle_image)],  # Новый обработчик
+                },
+                fallbacks=[CommandHandler('start', bot.start)],
+            )
+            
+            application.add_handler(conv_handler)
+            print("✅ Обработчики добавлены")
+            
+            job_queue = application.job_queue
+            job_queue.run_repeating(check_messages_with_logs, interval=60, first=10)
+            job_queue.run_repeating(send_reminder, interval=3*24*60*60, first=24*60*60)
+            job_queue.run_repeating(bot.check_balance_periodically, interval=60*60, first=10)  # Проверка каждый час
+            print("✅ Задачи планировщика добавлены")
+            
+            print("\n🚀 Бот запущен и готов к работе!")
+            application.run_polling(allowed_updates=Update.ALL_TYPES)
+            
+        except Exception as e:
+            logging.error(f"Startup error: {e}")
+            print(f"❌ Ошибка запуска: {e}")
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()
